@@ -1,10 +1,13 @@
 ### SFML 1
 
+cmake --build build
+<br>
+
+rm -rf build
+<br>
+
 cmake -S . -B build
 <br>
 
 cmake --build build
-<br>
-
-./build/00/00
 <br>
