@@ -1,0 +1,11 @@
+/Users/max/Desktop/cpp_pr/sfml.1/build/CMakeFiles/edit_cache.dir
+/Users/max/Desktop/cpp_pr/sfml.1/build/CMakeFiles/rebuild_cache.dir
+/Users/max/Desktop/cpp_pr/sfml.1/build/00/CMakeFiles/00.dir
+/Users/max/Desktop/cpp_pr/sfml.1/build/00/CMakeFiles/edit_cache.dir
+/Users/max/Desktop/cpp_pr/sfml.1/build/00/CMakeFiles/rebuild_cache.dir
+/Users/max/Desktop/cpp_pr/sfml.1/build/01/CMakeFiles/edit_cache.dir
+/Users/max/Desktop/cpp_pr/sfml.1/build/01/CMakeFiles/rebuild_cache.dir
+/Users/max/Desktop/cpp_pr/sfml.1/build/02/CMakeFiles/edit_cache.dir
+/Users/max/Desktop/cpp_pr/sfml.1/build/02/CMakeFiles/rebuild_cache.dir
+/Users/max/Desktop/cpp_pr/sfml.1/build/03/CMakeFiles/edit_cache.dir
+/Users/max/Desktop/cpp_pr/sfml.1/build/03/CMakeFiles/rebuild_cache.dir

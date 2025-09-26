@@ -1,0 +1,11 @@
+{
+	"InstallScripts" : 
+	[
+		"/Users/max/Desktop/cpp_pr/sfml.1/build/cmake_install.cmake",
+		"/Users/max/Desktop/cpp_pr/sfml.1/build/00/cmake_install.cmake",
+		"/Users/max/Desktop/cpp_pr/sfml.1/build/01/cmake_install.cmake",
+		"/Users/max/Desktop/cpp_pr/sfml.1/build/02/cmake_install.cmake",
+		"/Users/max/Desktop/cpp_pr/sfml.1/build/03/cmake_install.cmake"
+	],
+	"Parallel" : false
+}
