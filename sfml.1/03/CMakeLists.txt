@@ -1,4 +1,4 @@
-add_executable(03 main.cpp)
+add_executable(03 house.cpp)
 
 find_package(SFML 3 REQUIRED COMPONENTS Window Graphics System)
 
