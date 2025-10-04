@@ -8,17 +8,17 @@ constexpr unsigned WINDOW_HEIGHT = 600;
 constexpr float BALL_SIZE = 40;
 
 void initBall(
-    CircleShape &pointer,
+    CircleShape &ball,
     const Color &color,
     const Vector2f &position
 ) {
-    pointer.setFillColor(Color(color));
-    pointer.setPosition(position);
+    ball.setFillColor(Color(color));
+    ball.setPosition(position);
 }
 
-void redrawFrame(RenderWindow &window, CircleShape &pointer) {
+void redrawFrame(RenderWindow &window, CircleShape &ball) {
     window.clear();
-    window.draw(pointer);
+    window.draw(ball);
     window.display();
 }
 
@@ -28,17 +28,16 @@ int main() {
                             WINDOW_HEIGHT
                         }), "Wave Moving Ball");
     Clock clock;
-    Vector2f position = {BALL_SIZE, WINDOW_HEIGHT / 2.f - BALL_SIZE};
     float speedX = 200.f;
     float totalTime = 0.f;
+    constexpr float amplitudeY = WINDOW_HEIGHT / 3.f;
+    constexpr float periodY = 1.f;
+    Vector2f position = {BALL_SIZE, WINDOW_HEIGHT / 2.f - BALL_SIZE};
 
     CircleShape ball(BALL_SIZE);
     initBall(ball, {0xFF, 0xFF, 0xFF}, position);
 
     while (window.isOpen()) {
-        constexpr float amplitudeY = 80.f;
-        constexpr float periodY = 1.f;
-
         while (const auto event = window.pollEvent()) {
             if (event->is<Event::Closed>()) {
                 window.close();
