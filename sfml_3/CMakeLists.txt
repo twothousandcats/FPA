@@ -13,4 +13,5 @@ find_package(SFML 3 COMPONENTS Graphics Window System REQUIRED)
 add_subdirectory(00)
 add_subdirectory(01)
 add_subdirectory(02)
-add_subdirectory(03)
+
+add_subdirectory(sfml_3_1)
