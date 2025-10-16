@@ -1,8 +1,5 @@
 #include <SFML/Graphics.hpp>
 #include <cmath>
-#include <iostream>
-#include <algorithm>
-#include <set>
 
 using namespace sf;
 using namespace std;
@@ -91,9 +88,10 @@ void update(
     const Vector2f &mousePosition,
     Eye &eye
 ) {
+    constexpr float coefficient = 1.5f;
     constexpr Vector2f maxOffset = {
-        BASE_RADIUS.x / 1.5f - PUPIL_RADIUS.x,
-        BASE_RADIUS.y / 1.5f - PUPIL_RADIUS.y
+        BASE_RADIUS.x / coefficient - PUPIL_RADIUS.x,
+        BASE_RADIUS.y / coefficient - PUPIL_RADIUS.y
     };
     const Vector2f delta = mousePosition - eye.position;
     const Vector2f offset = clampToEllipse(delta, maxOffset);
