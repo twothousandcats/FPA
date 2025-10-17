@@ -1,0 +1,59 @@
+#include <SFML/Graphics.hpp>
+
+using namespace std;
+using namespace sf;
+
+// Инициализация стрелки
+void initArrow(
+    ConvexShape &arrow
+) {
+    // Установка точек
+    
+    // Задание положения, угла, заливки и границ
+}
+
+// Опрос и обработка событий
+void pollEvents(
+    RenderWindow &window
+) {
+    // Обработка закрытия окна
+}
+
+// Рисование и вывод
+void redraw(
+    RenderWindow &window,
+    const ConvexShape &arrow
+) {
+    // Очистка
+
+    // Отрисовка
+
+    // Вывод
+}
+
+int main() {
+    // Задание настроек окна
+    ContextSettings settings;
+    settings.antiAliasingLevel = 8;
+
+    // Создание окна с заданными параметрами
+    RenderWindow window(
+        VideoMode({WINDOW_WIDTH, WINDOW_HEIGHT}),
+        "Arrow with outline",
+        Style::Default,
+        State::Windowed,
+        settings
+    );
+
+    // Создание и инициализация стрелки
+    ConvexShape arrow;
+    initArrow(arrow);
+
+    // Игровой цикл
+    while (window.isOpen()) {
+        pollEvents(window);
+        redraw(window, arrow);
+    }
+
+    return 0;
+}

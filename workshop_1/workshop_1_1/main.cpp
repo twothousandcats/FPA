@@ -9,20 +9,32 @@ constexpr unsigned WINDOW_HEIGHT = 600;
 void initArrow(
     ConvexShape &arrow
 ) {
+    constexpr float SIZE = 100.f;
+    constexpr Color COLOR = Color::Yellow;
+    constexpr Color LINE_COLOR = Color::Black;
+    constexpr float LINE_THICKNESS = 2.f;
+    constexpr float HALF_SIZE = SIZE / 2.f;
+    constexpr float QUARTER_SIZE = HALF_SIZE / 2.f;
+    constexpr float START_X = WINDOW_WIDTH / 2.f;
+    constexpr float START_Y = WINDOW_HEIGHT / 2.f - HALF_SIZE;
+    constexpr Angle START_ANGLE = degrees(-80);
+
+    // Установка точек
     arrow.setPointCount(7);
-    arrow.setPoint(0, {0, 0}); // нос
-    arrow.setPoint(1, {-50, 50});
-    arrow.setPoint(2, {-50, 25});
-    arrow.setPoint(3, {-100, 25});
-    arrow.setPoint(4, {-100, -25});
-    arrow.setPoint(5, {-50, -25});
-    arrow.setPoint(6, {-50, -50});
+    arrow.setPoint(0, { 0, 0 }); // нос
+    arrow.setPoint(1, { -HALF_SIZE, HALF_SIZE });
+    arrow.setPoint(2, { -HALF_SIZE, QUARTER_SIZE });
+    arrow.setPoint(3, { -SIZE, QUARTER_SIZE });
+    arrow.setPoint(4, { -SIZE, -QUARTER_SIZE });
+    arrow.setPoint(5, { -HALF_SIZE, -QUARTER_SIZE });
+    arrow.setPoint(6, { -HALF_SIZE, -HALF_SIZE });
 
     arrow.setOrigin({0, 0});
-    arrow.setFillColor(Color::Yellow);
-    arrow.setOutlineColor(Color::Black);
-    arrow.setOutlineThickness(2.f);
-    arrow.setPosition({WINDOW_WIDTH / 2.f, WINDOW_HEIGHT / 2.f});
+    arrow.setRotation(START_ANGLE);
+    arrow.setFillColor(COLOR);
+    arrow.setOutlineColor(LINE_COLOR);
+    arrow.setOutlineThickness(LINE_THICKNESS);
+    arrow.setPosition({ START_X, START_Y });
 }
 
 void pollEvents(
@@ -49,7 +61,7 @@ int main() {
     settings.antiAliasingLevel = 8;
 
     RenderWindow window(
-        VideoMode({WINDOW_WIDTH, WINDOW_HEIGHT}),
+        VideoMode({ WINDOW_WIDTH, WINDOW_HEIGHT }),
         "Arrow with outline",
         Style::Default,
         State::Windowed,
