@@ -1,0 +1,126 @@
+#define _USE_MATH_DEFINES
+#include <cmath>
+#include <algorithm>
+#include <SFML/Graphics.hpp>
+#include <iostream>
+
+using namespace sf;
+using namespace std;
+
+// Инициализация кота
+void initCat(
+    Sprite &cat,
+    const Texture &texture
+) {
+    // Расположение в центре экрана
+
+    // Установка orign в центре картинки
+}
+
+// Инициализация указки
+void initLazerPointer(
+    Sprite &lazerPointer,
+    const Texture &texture
+) {
+    // Расположение в центре экрана
+
+    // Установка orign в центре картинки
+}
+
+// Опрос и обработка событий
+void pollEvents(
+    RenderWindow &window,
+    Sprite &lazerPointer
+) {
+    // Обработка закрытия окна
+
+    // Обновление позиции указки по щелчку мыши
+}
+
+// Поворот кота
+void rotateCat(
+    Sprite &cat,
+    const float targetAngle
+) {
+    // Поворот кота через scale
+}
+
+// Перемещение кота к указке
+void moveCat(
+    Sprite &cat,
+    const float targetAngle,
+    const Vector2f toTarget,
+    const float dt
+) {
+    // Проверка, необходимо ли ещё перемещение исходя положений кота и указки
+
+    // Определение длины пути перемещения с учётом максимальной скорости
+    
+    // Определение вектора перемещения
+
+    // Перемещение кота
+}
+
+// Обновление положения кота
+void updateCat(
+    Sprite &cat,
+    const Sprite &lazerPointer,
+    const float dt
+) {
+    // Поворот кота
+    rotateCat(...)
+
+    // Перемещение кота
+    moveCat(...)
+}
+
+// Рисование и вывод
+void render(
+    RenderWindow &window,
+    const Sprite &cat,
+    const Sprite &lazerPointer
+) {
+    // Очистка
+
+    // Отрисовка
+
+    // Вывод
+}
+
+int main() {
+    // Попытка создания текстур с обработкой ошибок
+    try {
+        const Texture catTexture(CAT_FILE_NAME);
+        const Texture lazerPointerTexture(LAZER_POINTER_FILE_NAME);
+
+        // Создание спрайтов кота и указки
+        Sprite cat(catTexture);
+        initCat(cat, catTexture);
+        Sprite lazerPointer(lazerPointerTexture);
+        initLazerPointer(lazerPointer, lazerPointerTexture);
+
+        // Создание окна
+        RenderWindow window(
+            VideoMode({ WINDOW_WIDTH, WINDOW_HEIGHT }),
+            "Cat moves following the lazer pointer"
+        );
+
+        // Игровой цикл
+        Clock clock;
+        while (window.isOpen()) {
+            // Опрос и обработка событий
+            pollEvents(window, lazerPointer);
+            // Обновление положения кота
+            updateCat(cat, lazerPointer, clock.restart().asSeconds());
+            // Отрисовка
+            render(window, cat, lazerPointer);
+        }
+        
+    } catch (const sf::Exception& error) {
+        // Обработка ошибок
+        cerr << "SFML Error: " << error.what() << endl;
+        return EXIT_FAILURE;
+    }
+
+    return EXIT_SUCCESS;
+}
