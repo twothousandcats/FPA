@@ -1,0 +1,71 @@
+#include <SFML/Graphics.hpp>
+#include <iostream>
+
+using namespace sf;
+using namespace std;
+
+constexpr unsigned WINDOW_WIDTH = 800;
+constexpr unsigned WINDOW_HEIGHT = 600;
+
+// Инициализация кота
+void initCat(
+    Sprite &cat,
+    const Texture &texture
+) {
+    // Расположение в центре экрана
+
+    // Установка orign в центре картинки
+}
+
+// Опрос и обработка событий
+void pollEvents(
+    RenderWindow &window
+) {
+    // Обработка закрытия окна
+}
+
+// Рисование и вывод
+void render(
+    RenderWindow &window,
+    const Sprite &cat
+) {
+    // Очистка
+
+    // Отрисовка
+
+    // Вывод
+}
+
+int main() {
+    const string SPRITE_NAME = "cat.png";
+
+    // Попытка создания текстуры с обработкой ошибок
+    try {
+        const Texture texture(SPRITE_NAME);
+
+        // Инициализация кота
+        Sprite cat(texture);
+        initCat(cat, texture);
+
+        // Создание окна
+        RenderWindow window(
+            VideoMode({ WINDOW_WIDTH, WINDOW_HEIGHT }),
+            "Cat Sprite"
+        );
+
+        // Игровой цикл
+        while (window.isOpen()) {
+            // Опрос и обработка событий (закрытие окна)
+            pollEvents(window);
+            // Отрисовка
+            render(window, cat);
+        }
+        
+    } catch (const sf::Exception& error) {
+        // Обработка ошибок
+        cerr << "SFML Error: " << error.what() << endl;
+        return EXIT_FAILURE;
+    }
+
+    return EXIT_SUCCESS;
+}

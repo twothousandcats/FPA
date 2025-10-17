@@ -1,0 +1,129 @@
+#define _USE_MATH_DEFINES
+#include <cmath>
+#include <SFML/Graphics.hpp>
+#include <algorithm>
+
+using namespace sf;
+using namespace std;
+
+constexpr unsigned WINDOW_WIDTH = 800;
+constexpr unsigned WINDOW_HEIGHT = 600;
+constexpr float MOVE_SPEED = 20.f;
+constexpr float ROTATION_SPEED_DEG = 90.f;
+
+// Инициализация стрелки
+void initArrow(
+    ConvexShape &arrow
+) {
+    // Установка точек
+    
+    // Задание положения, угла, заливки и границ
+}
+
+// Опрос и обработка событий
+void pollEvents(
+    RenderWindow &window,
+    Vector2f &mousePos
+) {
+    // Обработка закрытия окна
+    
+    // Обработка движения мыши. Сохранение новой позиции
+}
+
+// Поворот стрелки
+void rotateArrow(
+    ConvexShape &arrow,
+    const float targetAngle,
+    const float targetDistance,
+    const float dt
+) {
+    // Проверка, необходимо ли ещё поворачивать исходя положения стрелки
+
+    // Определение дельты угла между текущим положением и необходимым
+
+    // Определение угла поворота с учётом максимальной скорости
+    
+    // Поворот
+}
+
+// Перемещение стрелки
+void moveArrow(
+    ConvexShape &arrow,
+    const float targetAngle,
+    const float targetDistance,
+    const float dt
+) {
+    // Проверка, необходимо ли ещё перемещение исходя положения стрелки
+
+    // Определение длины пути перемещения с учётом максимальной скорости
+    
+    // Определение вектора перемещения
+
+    // Перемещение
+}
+
+// Обновление положения стрелки
+void updateArrow(
+    ConvexShape &arrow,
+    const Vector2f &target,
+    const float dt
+) {
+    // Определение вектора от текущей позиции до стрелки
+
+    // Определение целевого угла
+    
+    // Определение расстояния от текущей позиции до стрелки
+
+    // Поворот стрелки (при необходимости с учётом оставшегося расстояния)
+    rotateArrow(...);
+
+    // Перемещение стрелки (при необходимости с учётом оставшегося расстояния)
+    moveArrow(...);
+}
+
+// Рисование и вывод
+void renderFrame(
+    RenderWindow &window,
+    const ConvexShape &arrow
+) {
+    // Очистка
+
+    // Отрисовка
+
+    // Вывод
+}
+
+int main() {
+    // Задание настроек окна
+    ContextSettings settings;
+    settings.antiAliasingLevel = 8;
+
+    // Создание окна с заданными параметрами
+    RenderWindow window(
+        VideoMode({ WINDOW_WIDTH, WINDOW_HEIGHT }),
+        "Arrow Follows Mouse",
+        Style::Default,
+        State::Windowed,
+        settings
+    );
+
+    // Задание начального положения мыши
+    Vector2f mousePos{ WINDOW_WIDTH / 2.f, WINDOW_HEIGHT / 2.f };
+    
+    // Создание и инициализация стрелки
+    ConvexShape arrow;
+    initArrow(arrow);
+
+    Clock clock;
+    // Игровой цикл
+    while (window.isOpen()) {
+        // Опрос и обработка событий. Обновление позиции мыши
+        pollEvents(window, mousePos);
+        // Обновление положения стрелки
+        updateArrow(arrow, mousePos, clock.restart().asSeconds());
+        // Рисование и вывод
+        renderFrame(window, arrow);
+    }
+
+    return 0;
+}
