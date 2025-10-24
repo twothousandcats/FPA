@@ -50,34 +50,40 @@ struct Target
     }
 };
 
-enum class CatState
-{
-    Idle,
-    Moving,
-};
-
-struct Cat
+class IHasSprite
 {
     std::unique_ptr<sf::Sprite> sprite = nullptr;
-    CatState state = CatState::Idle;
-    Target target;
-    // Обработан поворот?
-    bool rotationProcessed = true;
 
-    Cat(const sf::Texture& texture)
+protected:
+    IHasSprite(const sf::Texture &texture)
     {
-        state = CatState::Idle;
-        sprite = std::make_unique<sf::Sprite>(texture); // Создаём спрайт в куче
-        sprite->setPosition(WINDOW_CENTER);
-        const Vector2u textureSize = texture.getSize();
-        sprite->setOrigin({textureSize.x / 2.f, textureSize.y / 2.f});
+        sprite = std::make_unique<sf::Sprite>(texture);
     }
 
-    Vector2f getPosition() 
+    Vector2f getPosition()
     {
         return sprite ? sprite->getPosition() : sf::Vector2f(0.f, 0.f);
     }
 
+    void setScale(const Vector2f &scale)
+    {
+        if (sprite)
+            sprite->setScale(scale);
+    }
+
+    void setOrigin(const Vector2f &orign)
+    {
+        if (sprite)
+            sprite->setOrigin(orign);
+    }
+
+    void shift(const Vector2f &offset)
+    {
+        if (sprite)
+            sprite->move(offset);
+    }
+
+public:
     void setPosition(const Vector2f newPosition)
     {
         if (sprite)
@@ -86,9 +92,87 @@ struct Cat
 
     bool inSafeZone(const Vector2f point)
     {
-        return sprite 
-            ? isPointInSafeZoneByCenter(getPosition(), point)
-            : true;
+        return sprite
+                   ? isPointInSafeZoneByCenter(getPosition(), point)
+                   : true;
+    }
+
+    void draw(RenderWindow &window)
+    {
+        if (sprite)
+            window.draw(*sprite);
+    }
+};
+
+enum class CatState
+{
+    Idle,
+    Moving,
+};
+
+class Cat : public IHasSprite
+{
+    CatState state = CatState::Idle;
+    Target target;
+    // Обработан поворот?
+    bool rotationProcessed = true;
+
+    void rotate()
+    {
+        // Выполняем поворот только при первом вызове rotate
+        if (rotationProcessed)
+            return;
+
+        setScale({target.getDirection(), 1.f});
+
+        // Устанавливаем флаг, что поворот обработан
+        rotationProcessed = true;
+    }
+
+    // Добрался до места
+    void onPlace()
+    {
+        target.distance = 0.f;
+    }
+
+    void move(const float dt)
+    {
+        // Кот дошёл до цели
+        if (target.isInPlace())
+        {
+            state = CatState::Idle;
+            onPlace();
+            return;
+        }
+
+        constexpr float MOVE_SPEED = 100.f;
+
+        // Перемещение — использовать нормализованный вектор
+        const float maxDistance = MOVE_SPEED * dt;
+        const float moveDistance = min(maxDistance, target.distance);
+        shift(target.normVector * moveDistance);
+
+        // Уменьшение дистанции
+        target.distance -= moveDistance;
+    }
+
+public:
+    Cat(const sf::Texture &texture) : IHasSprite(texture)
+    {
+        state = CatState::Idle;
+        setPosition(WINDOW_CENTER);
+        const Vector2u textureSize = texture.getSize();
+        setOrigin({textureSize.x / 2.f, textureSize.y / 2.f});
+    }
+
+    bool isIdle()
+    {
+        return state == CatState::Idle;
+    }
+
+    bool isMoving()
+    {
+        return state == CatState::Moving;
     }
 
     void setTarget(const Vector2f point)
@@ -98,105 +182,33 @@ struct Cat
         state = isPointInSafeZone(toTarget)
                     ? CatState::Idle
                     : CatState::Moving;
-        // Корректировка цели в зависимости от состояния кота            
-        if (state == CatState::Moving){
+        // Корректировка цели в зависимости от состояния кота
+        if (state == CatState::Moving)
+        {
             target.setByVector(toTarget);
             rotationProcessed = false;
         }
         else
-            target.distance = 0.f;
-    }
-
-    bool isIdle() 
-    {
-        return state == CatState::Idle;
-    }
-
-    bool isMoving() 
-    {
-        return state == CatState::Moving;
-    }
-
-    void rotate()
-    {
-        // Выполняем поворот только при первом вызове rotate
-        if (rotationProcessed || !sprite) return;
-
-        if (sprite)
-            sprite->setScale({target.getDirection(), 1.f});
-
-        // Устанавливаем флаг, что поворот обработан
-        rotationProcessed = true;
-    }
-
-    void move(const float dt)
-    {
-        // Кот дошёл до цели
-        if (target.isInPlace())
-        {
-            state = CatState::Idle;
-            target.distance = 0.f;
-            return;
-        }
-
-        constexpr float MOVE_SPEED = 100.f;
-
-        // Перемещение — использовать нормализованный вектор
-        const float maxDistance = MOVE_SPEED * dt;
-        const float moveDistance = min(maxDistance, target.distance);
-        if (sprite)
-            sprite->move(target.normVector * moveDistance);
-
-        // Уменьшение дистанции
-        target.distance -= moveDistance;
+            onPlace();
     }
 
     void update(const float dt)
     {
-        if (isIdle()) return;
+        if (isIdle())
+            return;
         rotate();
         move(dt);
     }
-
-    void draw(RenderWindow &window)
-    {
-        if (sprite)
-            window.draw(*sprite);
-    }
 };
 
-struct LaserPointer
+class LaserPointer : public IHasSprite
 {
-    std::unique_ptr<sf::Sprite> sprite = nullptr;
-    LaserPointer(const sf::Texture& texture)
+
+public:
+    LaserPointer(const sf::Texture &texture) : IHasSprite(texture)
     {
-        sprite = std::make_unique<sf::Sprite>(texture); // Создаём спрайт в куче
         const Vector2u textureSize = texture.getSize();
-        sprite->setOrigin({textureSize.x / 2.f, textureSize.y / 2.f});
-    }
-
-    Vector2f getPosition() 
-    {
-        return sprite ? sprite->getPosition() : sf::Vector2f(0.f, 0.f);
-    }
-
-    void setPosition(const Vector2f newPosition)
-    {
-        if (sprite)
-            sprite->setPosition(newPosition);
-    }
-
-    bool inSafeZone(const Vector2f point)
-    {
-        return sprite 
-            ? isPointInSafeZoneByCenter(getPosition(), point)
-            : true;
-    }
-
-    void draw(RenderWindow &window)
-    {
-        if (sprite)
-            window.draw(*sprite);
+        setOrigin({textureSize.x / 2.f, textureSize.y / 2.f});
     }
 };
 
