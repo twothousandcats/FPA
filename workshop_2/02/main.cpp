@@ -1,19 +1,19 @@
 #include <SFML/Graphics.hpp>
-#include <random>
-#include <ctime>
+#include <cmath>
 
 using namespace sf;
 using namespace std;
 
-// general
 constexpr unsigned WINDOW_WIDTH = 800;
 constexpr unsigned WINDOW_HEIGHT = 600;
 constexpr float BALL_SIZE = 40;
+constexpr float DIAMETER = 2 * BALL_SIZE;
 constexpr float HUNDRED = 100.f;
 
 // speed
-constexpr float MIN_SPEED = HUNDRED;
-constexpr float MAX_SPEED = HUNDRED * 4.f;
+constexpr Vector2f LOW_SPEED = {HUNDRED * 2.f, HUNDRED * 2.f};
+constexpr Vector2f MIDDLE_SPEED = {HUNDRED * 3.f, HUNDRED * 3.f};
+constexpr Vector2f TOP_SPEED = {HUNDRED * 4.f, HUNDRED * 4.f};
 
 // colors
 constexpr Color RED_COLOR = {255, 0, 0};
@@ -24,10 +24,10 @@ constexpr Color PURPLE_COLOR = {255, 0, 255};
 
 // positions
 constexpr Vector2f TOP_LEFT = {0, 0};
-constexpr Vector2f TOP_RIGHT = {WINDOW_WIDTH, WINDOW_HEIGHT};
-constexpr Vector2f BOTTOM_LEFT = {0, WINDOW_WIDTH - 1};
-constexpr Vector2f BOTTOM_RIGHT = {WINDOW_WIDTH, WINDOW_HEIGHT - 1};
-constexpr Vector2f CENTER = {WINDOW_WIDTH / 2.f, WINDOW_HEIGHT / 2.f};
+constexpr Vector2f TOP_RIGHT = {WINDOW_WIDTH - DIAMETER, 0};
+constexpr Vector2f BOTTOM_LEFT = {0, WINDOW_HEIGHT - DIAMETER};
+constexpr Vector2f BOTTOM_RIGHT = {WINDOW_WIDTH - DIAMETER, WINDOW_HEIGHT - DIAMETER};
+constexpr Vector2f CENTER = {WINDOW_WIDTH / 2.f - BALL_SIZE, WINDOW_HEIGHT / 2.f - BALL_SIZE};
 
 struct Ball {
     CircleShape base;
@@ -46,51 +46,11 @@ struct Ball {
     }
 };
 
-struct PRNG {
-    mt19937 engine;
-};
-
-void initGenerator(PRNG &gen) {
-    // Попытка использовать random_device
-    random_device rd;
-    unsigned seed = rd();
-    //  time как fallback, если seed мал
-    if (seed == 0 || seed == 0x80000000) {
-        seed = static_cast<unsigned>(time(nullptr));
-    }
-    gen.engine.seed(seed);
-}
-
-// Генерация случайной компоненты скорости в диапазоне [minSpeed, maxSpeed]
-// со случайным знаком
-float randomSpeedComponent(
-    PRNG &gen,
-    const float minSpeed = MIN_SPEED,
-    const float maxSpeed = MAX_SPEED
-) {
-    uniform_real_distribution magnitudeDist(minSpeed, maxSpeed);
-    uniform_int_distribution signDist(0, 1);
-    const float magnitude = magnitudeDist(gen.engine);
-    return signDist(gen.engine) ? magnitude : -magnitude;
-}
-
-// возвращаем псевдослучайный вектор скорости
-Vector2f randomSpeed(
-    PRNG &gen,
-    const float minSpeed = MIN_SPEED,
-    const float maxSpeed = MAX_SPEED
-) {
-    return {
-        randomSpeedComponent(gen, minSpeed, maxSpeed),
-        randomSpeedComponent(gen, minSpeed, maxSpeed)
-    };
-}
-
 void initBall(
     Ball &ball,
     const Color &color,
     const Vector2f &position,
-    const Vector2f &speed
+    const Vector2f &speed = LOW_SPEED
 ) {
     ball.base.setRadius(ball.radius);
     ball.base.setFillColor(color);
@@ -136,13 +96,54 @@ void setNewPosition(Ball &ball, float deltaTime) {
     shape.setPosition(newPos);
 }
 
+void handleCollision(Ball &ballA, Ball &ballB) {
+    const Vector2f posA = ballA.base.getPosition() + Vector2f(ballA.radius, ballA.radius);
+    const Vector2f posB = ballB.base.getPosition() + Vector2f(ballB.radius, ballB.radius);
+    const Vector2f diff = posB - posA;
+    const float distanceSquared = diff.x * diff.x + diff.y * diff.y;
+    const float minDistance = ballA.radius + ballA.radius;
+
+    if (distanceSquared >= minDistance * minDistance) {
+        return;
+    }
+
+    // Защита от совпадающих центров
+    if (distanceSquared < 1e-12f) { // ~1e-6 в линейной шкале
+        constexpr Vector2f separation(1e-3f, 0.f);
+        ballA.base.move(-separation);
+        ballB.base.move(separation);
+        return;
+    }
+
+    const Vector2f normal = diff / sqrt(distanceSquared);
+    const Vector2f relativeSpeed = ballA.speed - ballB.speed; // относительная скорость
+    const float speedAlongNormal = relativeSpeed.x * normal.x + relativeSpeed.y * normal.y;
+
+    if (speedAlongNormal <= 0) {
+        return;
+    }
+
+    // обмен скоростями при упругом столкновении (массы равны)
+    ballA.speed -= speedAlongNormal * normal;
+    ballB.speed += speedAlongNormal * normal;
+}
+
 void update(
     vector<Ball> &balls,
     Clock &clock
 ) {
     const float dt = clock.restart().asSeconds();
+
+    // учет стен
     for (Ball &ball: balls) {
         setNewPosition(ball, dt);
+    }
+
+    // учет других шаров
+    for (size_t i = 0; i < balls.size(); ++i) {
+        for (size_t j = i + 1; j < balls.size(); ++j) {
+            handleCollision(balls[i], balls[j]);
+        }
     }
 };
 
@@ -166,22 +167,19 @@ int main() {
             WINDOW_WIDTH,
             WINDOW_HEIGHT
         }),
-        "Bouncing Balls With Pseudorandom Speed",
+        "Bouncing Balls With With Collide",
         Style::Default,
         State::Windowed,
         settings
     );
     Clock clock;
 
-    PRNG generator;
-    initGenerator(generator);
-
     vector<Ball> balls = {
-        {BLUE_COLOR, TOP_LEFT, randomSpeed(generator)},
-        {RED_COLOR, TOP_RIGHT, randomSpeed(generator)},
-        {GREEN_COLOR, BOTTOM_LEFT, randomSpeed(generator)},
-        {YELLOW_COLOR, BOTTOM_RIGHT, randomSpeed(generator)},
-        {PURPLE_COLOR, CENTER, randomSpeed(generator)},
+        {BLUE_COLOR, TOP_LEFT, LOW_SPEED},
+        {RED_COLOR, TOP_RIGHT, MIDDLE_SPEED},
+        {GREEN_COLOR, BOTTOM_LEFT, TOP_SPEED},
+        {YELLOW_COLOR, BOTTOM_RIGHT, {-HUNDRED * 20.f, HUNDRED * 2.f}},
+        {PURPLE_COLOR, CENTER, {-HUNDRED * 2.f, -HUNDRED * 7.f}},
     };
 
     while (window.isOpen()) {

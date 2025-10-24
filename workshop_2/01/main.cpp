@@ -6,6 +6,7 @@ using namespace std;
 constexpr unsigned WINDOW_WIDTH = 800;
 constexpr unsigned WINDOW_HEIGHT = 600;
 constexpr float BALL_SIZE = 40;
+constexpr float DIAMETER = 2 * BALL_SIZE;
 constexpr float HUNDRED = 100.f;
 
 // speed
@@ -22,10 +23,10 @@ constexpr Color PURPLE_COLOR = {255, 0, 255};
 
 // positions
 constexpr Vector2f TOP_LEFT = {0, 0};
-constexpr Vector2f TOP_RIGHT = {WINDOW_WIDTH, WINDOW_HEIGHT};
-constexpr Vector2f BOTTOM_LEFT = {0, WINDOW_WIDTH - 1};
-constexpr Vector2f BOTTOM_RIGHT = {WINDOW_WIDTH, WINDOW_HEIGHT - 1};
-constexpr Vector2f CENTER = {WINDOW_WIDTH / 2.f, WINDOW_HEIGHT / 2.f};
+constexpr Vector2f TOP_RIGHT = {WINDOW_WIDTH - DIAMETER, 0};
+constexpr Vector2f BOTTOM_LEFT = {0, WINDOW_HEIGHT - DIAMETER};
+constexpr Vector2f BOTTOM_RIGHT = {WINDOW_WIDTH - DIAMETER, WINDOW_HEIGHT - DIAMETER};
+constexpr Vector2f CENTER = {WINDOW_WIDTH / 2.f - BALL_SIZE, WINDOW_HEIGHT / 2.f - BALL_SIZE};
 
 struct Ball {
     CircleShape base;
