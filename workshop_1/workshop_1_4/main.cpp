@@ -8,7 +8,7 @@ using namespace std;
 constexpr unsigned WINDOW_WIDTH = 800;
 constexpr unsigned WINDOW_HEIGHT = 600;
 constexpr Vector2f WINDOW_CENTER = {WINDOW_WIDTH / 2.f, WINDOW_HEIGHT / 2.f};
-constexpr float SAFE_ZONE_RADIUS = 2.f;
+constexpr float SAFE_ZONE_RADIUS = 5.f;
 
 bool isPointInSafeZone(
     const Vector2f &point)
@@ -33,15 +33,12 @@ struct Target
 {
     float distance = 0.f;
     Vector2f normVector = {0.f, 0.f};
-
-    void clear()
-    {
-        distance = 0.f;
-        normVector = {0.f, 0.f};
-    }
+    // Обработан поворот?
+    bool rotationProcessed = true;
 
     void setByVector(const Vector2f &toTarget)
     {
+        rotationProcessed = false;
         distance = toTarget.length();
         normVector = toTarget.normalized();
     }
@@ -91,13 +88,13 @@ void pollEvents(
                 static_cast<float>(clicked->position.x),
                 static_cast<float>(clicked->position.y)};
 
-            // Клик вне безопасной зоны указки
+            // Клик вне безопасной зоны указки => указка перемещается, изменяется цель кота
             if (!isPointInSafeZoneByCenter(laserPointer.getPosition(), mousePosition))
             {
                 // Смена позиции указки на позицию мыши
                 laserPointer.setPosition(mousePosition);
 
-                // Корректировка состояния кота.
+                // Корректировка цели кота.
                 // Если лазер в безопасной зоне кота, то кот останавливается, иначе - идёт
                 const Vector2f toTarget = mousePosition - cat.getPosition();
                 state = isPointInSafeZone(toTarget)
@@ -106,7 +103,7 @@ void pollEvents(
                 if (state == CatState::Moving)
                     target.setByVector(toTarget);
                 else
-                    target.clear();
+                    target.distance = 0.f;
             }
         }
     }
@@ -114,13 +111,22 @@ void pollEvents(
 
 void rotateCat(
     Sprite &cat,
-    const Vector2f direction)
+    Target &target)
 {
+    // Устанавливаем поворот только при первом проходе updateCat
+    if (target.rotationProcessed)
+    {
+        return;        
+    }
+
     constexpr float TO_LEFT_DIRECTION = -1.f;
-    const float directionScale = direction.x < 0.f
+    const float directionScale = target.normVector.x < 0.f
                                      ? TO_LEFT_DIRECTION
                                      : -TO_LEFT_DIRECTION;
     cat.setScale({directionScale, 1.f});
+
+    // Устанавливаем флаг, что поворот обработан
+    target.rotationProcessed = true;
 }
 
 void moveCat(
@@ -132,7 +138,7 @@ void moveCat(
     if (target.distance <= SAFE_ZONE_RADIUS)
     {
         catState = CatState::Idle;
-        // Нет очистки target, чтобы сохранить значение для scale
+        target.distance = 0.f;
         return;
     }
 
@@ -157,8 +163,8 @@ void updateCat(
         return;
     }
 
+    rotateCat(cat, target);
     moveCat(cat, catState, target, dt);
-    rotateCat(cat, target.normVector);
 }
 
 void render(
