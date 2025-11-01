@@ -3,77 +3,79 @@
 using namespace sf;
 using namespace std;
 
+constexpr float BASE_SIDE = 50.f;
 constexpr unsigned WINDOW_WIDTH = 1000;
 constexpr unsigned WINDOW_HEIGHT = 800;
 constexpr Vector2f WINDOW_CENTER = {1000 / 2.f, 800 / 2.f};
-constexpr float BASE_SIDE = 50.f;
-constexpr size_t BLOCKS_COUNT = 8;
+constexpr Vector2f INITIAL_POSITION = {BASE_SIDE / 2.f, BASE_SIDE / 2.f};
+constexpr size_t BLOCKS_COUNT = 6;
 constexpr size_t ANIMATION_STEPS = 5;
-constexpr float ANIMATION_DURATION = 5.f;
-constexpr float SPACING = 100.f;
+constexpr float ANIMATION_DURATION = 1.f;
+constexpr float SPACING = 80.f;
+constexpr float HALF_COMPENSATION_FACTOR = 0.5f;
+
+constexpr Color DEFAULT_COLOR = {102, 0, 102, 255};
+
+enum class AnimationStage {
+    Stage0_MoveRight,
+    Stage1_MoveToWindowCenter,
+    Stage2_MoveToHorizontal,
+    Stage3_MoveTop,
+    Stage4_MoveToVerticalStack,
+    Stage5_MoveToInitialPosition,
+    Finished
+};
 
 struct Block {
     RectangleShape shape;
     Vector2f basePosition;
     Vector2f baseSize;
-    Color baseColor;
-    float phaseOffset{}; //async ani
+    Color baseColor = DEFAULT_COLOR;
+    float phaseOffset{};
+
+    AnimationStage stage = AnimationStage::Stage0_MoveRight;
+    float stageStartTime = 0.f;
+
+    size_t index{};
+    Vector2f stageStartPos; // начало этапа
+    Vector2f stageStartSize;
 };
 
-// Утилита для линейной интерполяции
+// lerp
 template<typename T>
-T lerp(
-    T a, T b,
-    float t
+T linearInterpolation(
+    const T &a,
+    const T &b,
+    const float time
 ) {
-    return a + (b - a) * t;
-}
-
-Vector2f getHorizontalPosition(
-    const size_t index,
-    float centerY
-) {
-    constexpr float startX = (WINDOW_WIDTH - (BLOCKS_COUNT - 1) * SPACING) / 2.0f;
-    return {
-        startX + static_cast<float>(index) * SPACING,
-        centerY
-    };
-}
-
-Vector2f getVerticalPosition(
-    const size_t index,
-    float centerX
-) {
-    constexpr float startY = (WINDOW_HEIGHT - (BLOCKS_COUNT - 1) * SPACING) / 2.0f;
-    return {
-        centerX,
-        startY + static_cast<float>(index) * SPACING
-    };
+    return a + (b - a) * time;
 }
 
 void createBlock(
     vector<Block> &blocks
 ) {
-    constexpr float startX = (WINDOW_WIDTH - (BLOCKS_COUNT - 1) * SPACING) / 2.0f;
-    constexpr float startY = WINDOW_HEIGHT / 2.0f;
-
     for (size_t i = 0; i < BLOCKS_COUNT; ++i) {
         Block b;
-
-        b.basePosition = {startX + i * SPACING, startY};
-        b.shape.setPosition(b.basePosition);
-
+        b.basePosition = {INITIAL_POSITION.x, INITIAL_POSITION.y + i * SPACING};
         b.baseSize = {BASE_SIDE, BASE_SIDE};
-        b.shape.setSize(b.baseSize);
+        b.phaseOffset = 0.f;
 
-        b.baseColor = Color::Green;
-        b.phaseOffset = static_cast<float>(i) / BLOCKS_COUNT * ANIMATION_DURATION;
+        b.shape.setPosition(b.basePosition);
+        b.shape.setSize(b.baseSize);
+        b.shape.setFillColor(b.baseColor);
+        b.shape.setOrigin(b.baseSize / 2.f);
+
+        b.index = i;
+        b.stageStartPos = b.basePosition;
+        b.stageStartSize = b.baseSize;
 
         blocks.push_back(b);
     }
 }
 
-void pollEvents(RenderWindow &window) {
+void pollEvents(
+    RenderWindow &window
+) {
     while (const auto event = window.pollEvent()) {
         if (event->is<Event::Closed>()) {
             window.close();
@@ -81,124 +83,244 @@ void pollEvents(RenderWindow &window) {
     }
 }
 
+float getNormalizedTime(
+    const Block &block,
+    const float capacityTime,
+    const float stageDuration = ANIMATION_DURATION
+) {
+    const float elapsedTime = capacityTime - block.stageStartTime;
+    return min(elapsedTime / stageDuration, 1.f);
+}
+
+void updatePosition(
+    Block &block,
+    const Vector2f &endPosition,
+    const float duration
+) {
+    block.shape.setPosition(
+        linearInterpolation(
+            block.stageStartPos,
+            endPosition,
+            duration
+        )
+    );
+}
+
+void updateSize(
+    Block &block,
+    const Vector2f &startSize,
+    const Vector2f &endSize,
+    const float t
+) {
+    block.shape.setSize(
+        linearInterpolation(
+            startSize,
+            endSize,
+            t
+        )
+    );
+}
+
+void updateAlpha(
+    Block &block,
+    const uint8_t &startA,
+    const uint8_t &endA,
+    const float duration
+) {
+    const auto currentA = static_cast<uint8_t>(
+        startA + duration * (static_cast<float>(endA) - static_cast<float>(startA))
+    );
+
+    Color currentColor = block.baseColor;
+    currentColor.a = currentA;
+    block.shape.setFillColor(currentColor);
+}
+
+void toNextStage(
+    Block &block,
+    const AnimationStage nextStage,
+    const float totalTime
+) {
+    block.stage = nextStage;
+    block.stageStartTime = totalTime;
+    block.stageStartPos = block.shape.getPosition();
+    block.stageStartSize = block.shape.getSize();
+}
+
+void toFinishStage(
+    Block &block
+) {
+    block.stage = AnimationStage::Finished;
+}
+
+void animateStage0_MoveRight(
+    Block &block,
+    const float totalTime
+) {
+    constexpr float RIGHT_SHIFT = 200.f;
+    const float time = getNormalizedTime(block, totalTime);
+    const Vector2f endPos = {block.basePosition.x + RIGHT_SHIFT, block.basePosition.y};
+    updatePosition(block, endPos, time);
+
+    if (time >= ANIMATION_DURATION) {
+        toNextStage(block, AnimationStage::Stage1_MoveToWindowCenter, totalTime);
+    }
+}
+
+void animateStage1_MoveToWindowCenter(
+    Block &block,
+    const float totalTime
+) {
+    constexpr int COLOR_COMPENSATION_FACTOR = 2;
+    const float time = getNormalizedTime(block, totalTime);
+
+    // Pos
+    const float totalHeight = (BLOCKS_COUNT - 1) * SPACING;
+    const float startY = WINDOW_CENTER.y - totalHeight * HALF_COMPENSATION_FACTOR;
+    const float targetY = startY + static_cast<float>(block.index) * SPACING;
+    const Vector2f endPos = {WINDOW_CENTER.x, targetY};
+    updatePosition(block, endPos, time);
+    updateAlpha(block, block.baseColor.a, block.baseColor.a / COLOR_COMPENSATION_FACTOR, time);
+
+    if (time >= ANIMATION_DURATION) {
+        toNextStage(block, AnimationStage::Stage2_MoveToHorizontal, totalTime);
+    }
+}
+
+void animateStage2_MoveToHorizontal(
+    Block &block,
+    const float totalTime
+) {
+    const float time = getNormalizedTime(block, totalTime);
+
+    const float totalWidth = (BLOCKS_COUNT - 1) * SPACING;
+    const float startX = WINDOW_CENTER.x - totalWidth / 2.f;
+    const float targetX = startX + static_cast<float>(block.index) * SPACING;
+    const Vector2f endPos = {targetX, WINDOW_CENTER.y};
+
+    updatePosition(block, endPos, time);
+
+
+    if (time >= ANIMATION_DURATION) {
+        toNextStage(block, AnimationStage::Stage3_MoveTop, totalTime);
+    }
+}
+
+void animateStage3_MoveTop(
+    Block &block,
+    const float totalTime
+) {
+    constexpr float VERTICAL_SHIFT = 200.f;
+    const float time = getNormalizedTime(block, totalTime);
+
+    const Vector2f endPos = {block.stageStartPos.x, block.stageStartPos.y - VERTICAL_SHIFT};
+    updatePosition(block, endPos, time);
+
+    // режем высоту в 2
+    const Vector2f startSize = block.stageStartSize;
+    const Vector2f endSize = {block.baseSize.x, block.baseSize.y * HALF_COMPENSATION_FACTOR};
+    updateSize(block, startSize, endSize, time);
+
+    if (time >= ANIMATION_DURATION) {
+        toNextStage(block, AnimationStage::Stage4_MoveToVerticalStack, totalTime);
+    }
+}
+
+void animateStage4_MoveToVerticalStack(
+    Block &block,
+    const float totalTime
+) {
+    const float time = getNormalizedTime(block, totalTime);
+
+    constexpr float newHeight = BASE_SIDE * HALF_COMPENSATION_FACTOR;
+    constexpr float spacingY = newHeight + SPACING;
+
+    constexpr float totalWidth = (BLOCKS_COUNT - 1) * SPACING;
+    constexpr float firstBlockX = WINDOW_CENTER.x - totalWidth * HALF_COMPENSATION_FACTOR;
+
+    const float startY = block.stageStartPos.y;
+    const float targetY = startY + static_cast<float>(block.index) * spacingY;
+    const Vector2f endPos = {firstBlockX, targetY};
+    updatePosition(block, endPos, time);
+
+    if (time >= ANIMATION_DURATION) {
+        toNextStage(block, AnimationStage::Stage5_MoveToInitialPosition, totalTime);
+    }
+}
+
+void animateStage5_MoveToInitialPosition(
+    Block &block,
+    const float totalTime
+) {
+    const float time = getNormalizedTime(block, totalTime);
+
+    const Vector2f endPos = block.basePosition;
+    updatePosition(block, endPos, time);
+
+    const Vector2f startSize = block.stageStartSize;
+    const Vector2f endSize = block.baseSize;
+    updateSize(block, startSize, endSize, time);
+
+    updateAlpha(block, block.baseColor.a / 2, block.baseColor.a, time);
+
+    if (time >= ANIMATION_DURATION) {
+        toFinishStage(block);
+    }
+}
+
+void resetAnimation(
+    Block &block,
+    const float totalTime
+) {
+    block.shape.setPosition(block.basePosition);
+    block.shape.setSize(block.baseSize);
+    block.shape.setFillColor(block.baseColor);
+
+    block.stage = AnimationStage::Stage0_MoveRight;
+    block.stageStartPos = block.basePosition;
+    block.stageStartSize = block.baseSize;
+    block.stageStartTime = totalTime;
+    block.phaseOffset = totalTime;
+}
+
 void update(
     vector<Block> &blocks,
     const Clock &clock
 ) {
-    const float time = clock.getElapsedTime().asSeconds();
-    const float cycleTime = fmod(time, ANIMATION_DURATION);
-    const float normalized = cycleTime / ANIMATION_DURATION; // [0, 1)
+    const float totalTime = clock.getElapsedTime().asSeconds();
 
-    constexpr float stepDuration = 1.f / ANIMATION_STEPS;
-    const auto step = static_cast<size_t>(normalized / stepDuration);
-    const float alpha = (normalized - static_cast<float>(step) * stepDuration) / stepDuration; // [0, 1)
-
-    // Исходная горизонтальная линия (центр Y)
-    constexpr float centerY = WINDOW_CENTER.y;
-    constexpr float topY = 150.f; // верхняя граница
-
-    switch (step % ANIMATION_STEPS) {
-        case 0: {
-            // синхронный сдвиг влево
-            for (size_t i = 0; i < blocks.size(); ++i) {
-                const Vector2f startPos = getHorizontalPosition(i, centerY);
-                const Vector2f endPos = startPos + Vector2f(-120.f, 0.f);
-                const Vector2f pos = {
-                    lerp(startPos.x, endPos.x, alpha),
-                    lerp(startPos.y, endPos.y, alpha)
-                };
-                blocks[i].shape.setPosition(pos);
-                blocks[i].shape.setSize(blocks[i].baseSize);
-                blocks[i].shape.setFillColor(Color::Green);
-            }
-            break;
-        }
-        case 1: {
-            // Асинхронное вертикальное центрирование относительно центра окна
-            for (size_t i = 0; i < blocks.size(); ++i) {
-                const Vector2f startPos = getHorizontalPosition(i, centerY) + Vector2f(-120.f, 0.f);
-                const Vector2f endPos = getVerticalPosition(i, WINDOW_CENTER.x);
-                const Vector2f pos = {
-                    lerp(startPos.x, endPos.x, alpha),
-                    lerp(startPos.y, endPos.y, alpha)
-                };
-                blocks[i].shape.setPosition(pos);
-                blocks[i].shape.setSize(blocks[i].baseSize);
-                blocks[i].shape.setFillColor(Color::Green);
-            }
-            break;
-        }
-        case 2: {
-            // асинхронное движение вверх в горизонтальную линию
-            for (size_t i = 0; i < blocks.size(); ++i) {
-                const Vector2f startPos = getVerticalPosition(i, WINDOW_CENTER.x);
-                const Vector2f endPos = getHorizontalPosition(i, topY);
-                const Vector2f pos = {
-                    lerp(startPos.x, endPos.x, alpha),
-                    lerp(startPos.y, endPos.y, alpha)
-                };
-                blocks[i].shape.setPosition(pos);
-                blocks[i].shape.setSize(blocks[i].baseSize);
-                blocks[i].shape.setFillColor(Color::Green);
-            }
-            break;
-        }
-        case 3: {
-            // синхронное движение в цетнр со сменой альфы
-            const auto a = static_cast<uint8_t>(lerp(255.f, 80.f, alpha));
-            const Color color(0, 255, 0, a);
-
-            for (size_t i = 0; i < blocks.size(); ++i) {
-                const Vector2f startPos = getHorizontalPosition(i, topY);
-                const Vector2f endPos = getHorizontalPosition(i, centerY); // исходная позиция
-                const Vector2f pos = {
-                    lerp(startPos.x, endPos.x, alpha),
-                    lerp(startPos.y, endPos.y, alpha)
-                };
-                blocks[i].shape.setPosition(pos);
-                blocks[i].shape.setSize(blocks[i].baseSize);
-                blocks[i].shape.setFillColor(color);
-            }
-            break;
-        }
-        case 4: {
-            // синхронное изменение размера
-            float sizeFactor;
-            if (alpha < 0.333f) {
-                sizeFactor = lerp(1.0f, 2.0f, alpha * 3);
-            } else if (alpha < 0.666f) {
-                sizeFactor = lerp(2.0f, 0.5f, (alpha - 0.333f) * 3);
-            } else {
-                sizeFactor = lerp(0.5f, 1.0f, (alpha - 0.666f) * 3);
-            }
-
-            const Vector2f size = {BASE_SIDE * sizeFactor, BASE_SIDE * sizeFactor};
-
-            uint8_t r = 0;
-            if (alpha < 0.5f) {
-                r = static_cast<uint8_t>(lerp(0, 255, alpha * 2));
-            } else {
-                r = static_cast<uint8_t>(lerp(255, 0, (alpha - 0.5f) * 2));
-            }
-            const Color color(r, 255, 0, 255);
-
-            for (size_t i = 0; i < blocks.size(); ++i) {
-                Vector2f pos = getHorizontalPosition(i, centerY);
-                blocks[i].shape.setPosition(pos);
-                blocks[i].shape.setSize(size);
-                blocks[i].shape.setFillColor(color);
-            }
-            break;
-        }
-    }
-
-    // Асинхронный эффект: лёгкое дрожание
     for (auto &block: blocks) {
-        float t = fmod(time + block.phaseOffset, 1.0f);
-        float driftX = sin(t * 4 * M_PI) * 1.0f;
-        float driftY = cos(t * 5 * M_PI) * 0.7f;
-        Vector2f pos = block.shape.getPosition();
-        block.shape.setPosition(pos + Vector2f(driftX, driftY));
+        // сценарий
+        switch (block.stage) {
+            case AnimationStage::Stage0_MoveRight: {
+                animateStage0_MoveRight(block, totalTime);
+                break;
+            }
+            case AnimationStage::Stage1_MoveToWindowCenter: {
+                animateStage1_MoveToWindowCenter(block, totalTime);
+                break;
+            }
+            case AnimationStage::Stage2_MoveToHorizontal: {
+                animateStage2_MoveToHorizontal(block, totalTime);
+                break;
+            }
+            case AnimationStage::Stage3_MoveTop: {
+                animateStage3_MoveTop(block, totalTime);
+                break;
+            }
+            case AnimationStage::Stage4_MoveToVerticalStack: {
+                animateStage4_MoveToVerticalStack(block, totalTime);
+                break;
+            }
+            case AnimationStage::Stage5_MoveToInitialPosition: {
+                animateStage5_MoveToInitialPosition(block, totalTime);
+                break;
+            }
+            case AnimationStage::Finished: {
+                resetAnimation(block, totalTime);
+                break;
+            }
+        }
     }
 }
 
