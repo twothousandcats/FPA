@@ -95,13 +95,13 @@ float getNormalizedTime(
 void updatePosition(
     Block &block,
     const Vector2f &endPosition,
-    const float duration
+    const float normalizedTime
 ) {
     block.shape.setPosition(
         linearInterpolation(
             block.stageStartPos,
             endPosition,
-            duration
+            normalizedTime
         )
     );
 }
@@ -110,13 +110,13 @@ void updateSize(
     Block &block,
     const Vector2f &startSize,
     const Vector2f &endSize,
-    const float t
+    const float normalizedTime
 ) {
     block.shape.setSize(
         linearInterpolation(
             startSize,
             endSize,
-            t
+            normalizedTime
         )
     );
 }
@@ -125,10 +125,10 @@ void updateAlpha(
     Block &block,
     const uint8_t &startA,
     const uint8_t &endA,
-    const float duration
+    const float normalizedTime
 ) {
     const auto currentA = static_cast<uint8_t>(
-        startA + duration * (static_cast<float>(endA) - static_cast<float>(startA))
+        startA + normalizedTime * (static_cast<float>(endA) - static_cast<float>(startA))
     );
 
     Color currentColor = block.baseColor;
@@ -158,11 +158,11 @@ void animateStage0_MoveRight(
     const float totalTime
 ) {
     constexpr float RIGHT_SHIFT = 200.f;
-    const float time = getNormalizedTime(block, totalTime);
+    const float normalizedTime = getNormalizedTime(block, totalTime);
     const Vector2f endPos = {block.basePosition.x + RIGHT_SHIFT, block.basePosition.y};
-    updatePosition(block, endPos, time);
+    updatePosition(block, endPos, normalizedTime);
 
-    if (time >= ANIMATION_DURATION) {
+    if (normalizedTime >= ANIMATION_DURATION) {
         toNextStage(block, AnimationStage::Stage1_MoveToWindowCenter, totalTime);
     }
 }
@@ -172,17 +172,17 @@ void animateStage1_MoveToWindowCenter(
     const float totalTime
 ) {
     constexpr int COLOR_COMPENSATION_FACTOR = 2;
-    const float time = getNormalizedTime(block, totalTime);
+    const float normalizedTime = getNormalizedTime(block, totalTime);
 
     // Pos
     const float totalHeight = (BLOCKS_COUNT - 1) * SPACING;
     const float startY = WINDOW_CENTER.y - totalHeight * HALF_COMPENSATION_FACTOR;
     const float targetY = startY + static_cast<float>(block.index) * SPACING;
     const Vector2f endPos = {WINDOW_CENTER.x, targetY};
-    updatePosition(block, endPos, time);
-    updateAlpha(block, block.baseColor.a, block.baseColor.a / COLOR_COMPENSATION_FACTOR, time);
+    updatePosition(block, endPos, normalizedTime);
+    updateAlpha(block, block.baseColor.a, block.baseColor.a / COLOR_COMPENSATION_FACTOR, normalizedTime);
 
-    if (time >= ANIMATION_DURATION) {
+    if (normalizedTime >= ANIMATION_DURATION) {
         toNextStage(block, AnimationStage::Stage2_MoveToHorizontal, totalTime);
     }
 }
@@ -191,17 +191,17 @@ void animateStage2_MoveToHorizontal(
     Block &block,
     const float totalTime
 ) {
-    const float time = getNormalizedTime(block, totalTime);
+    const float normalizedTime = getNormalizedTime(block, totalTime);
 
     const float totalWidth = (BLOCKS_COUNT - 1) * SPACING;
     const float startX = WINDOW_CENTER.x - totalWidth / 2.f;
     const float targetX = startX + static_cast<float>(block.index) * SPACING;
     const Vector2f endPos = {targetX, WINDOW_CENTER.y};
 
-    updatePosition(block, endPos, time);
+    updatePosition(block, endPos, normalizedTime);
 
 
-    if (time >= ANIMATION_DURATION) {
+    if (normalizedTime >= ANIMATION_DURATION) {
         toNextStage(block, AnimationStage::Stage3_MoveTop, totalTime);
     }
 }
@@ -211,17 +211,17 @@ void animateStage3_MoveTop(
     const float totalTime
 ) {
     constexpr float VERTICAL_SHIFT = 200.f;
-    const float time = getNormalizedTime(block, totalTime);
+    const float normalizedTime = getNormalizedTime(block, totalTime);
 
     const Vector2f endPos = {block.stageStartPos.x, block.stageStartPos.y - VERTICAL_SHIFT};
-    updatePosition(block, endPos, time);
+    updatePosition(block, endPos, normalizedTime);
 
     // режем высоту в 2
     const Vector2f startSize = block.stageStartSize;
     const Vector2f endSize = {block.baseSize.x, block.baseSize.y * HALF_COMPENSATION_FACTOR};
-    updateSize(block, startSize, endSize, time);
+    updateSize(block, startSize, endSize, normalizedTime);
 
-    if (time >= ANIMATION_DURATION) {
+    if (normalizedTime >= ANIMATION_DURATION) {
         toNextStage(block, AnimationStage::Stage4_MoveToVerticalStack, totalTime);
     }
 }
@@ -230,7 +230,7 @@ void animateStage4_MoveToVerticalStack(
     Block &block,
     const float totalTime
 ) {
-    const float time = getNormalizedTime(block, totalTime);
+    const float normalizedTime = getNormalizedTime(block, totalTime);
 
     constexpr float newHeight = BASE_SIDE * HALF_COMPENSATION_FACTOR;
     constexpr float spacingY = newHeight + SPACING;
@@ -241,9 +241,9 @@ void animateStage4_MoveToVerticalStack(
     const float startY = block.stageStartPos.y;
     const float targetY = startY + static_cast<float>(block.index) * spacingY;
     const Vector2f endPos = {firstBlockX, targetY};
-    updatePosition(block, endPos, time);
+    updatePosition(block, endPos, normalizedTime);
 
-    if (time >= ANIMATION_DURATION) {
+    if (normalizedTime >= ANIMATION_DURATION) {
         toNextStage(block, AnimationStage::Stage5_MoveToInitialPosition, totalTime);
     }
 }
@@ -252,18 +252,18 @@ void animateStage5_MoveToInitialPosition(
     Block &block,
     const float totalTime
 ) {
-    const float time = getNormalizedTime(block, totalTime);
+    const float normalizedTime = getNormalizedTime(block, totalTime);
 
     const Vector2f endPos = block.basePosition;
-    updatePosition(block, endPos, time);
+    updatePosition(block, endPos, normalizedTime);
 
     const Vector2f startSize = block.stageStartSize;
     const Vector2f endSize = block.baseSize;
-    updateSize(block, startSize, endSize, time);
+    updateSize(block, startSize, endSize, normalizedTime);
 
-    updateAlpha(block, block.baseColor.a / 2, block.baseColor.a, time);
+    updateAlpha(block, block.baseColor.a / 2, block.baseColor.a, normalizedTime);
 
-    if (time >= ANIMATION_DURATION) {
+    if (normalizedTime >= ANIMATION_DURATION) {
         toFinishStage(block);
     }
 }
