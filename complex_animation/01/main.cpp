@@ -4,6 +4,7 @@ using namespace sf;
 using namespace std;
 
 constexpr float BASE_SIDE = 50.f;
+constexpr Vector2f BASE_SIZE = {BASE_SIDE, BASE_SIDE};
 constexpr unsigned WINDOW_WIDTH = 1000;
 constexpr unsigned WINDOW_HEIGHT = 800;
 constexpr Vector2f WINDOW_CENTER = {1000 / 2.f, 800 / 2.f};
@@ -17,23 +18,20 @@ constexpr float HALF_COMPENSATION_FACTOR = 0.5f;
 constexpr Color DEFAULT_COLOR = {102, 0, 102, 255};
 
 enum class AnimationStage {
-    Stage0_MoveRight,
-    Stage1_MoveToWindowCenter,
-    Stage2_MoveToHorizontal,
-    Stage3_MoveTop,
-    Stage4_MoveToVerticalStack,
-    Stage5_MoveToInitialPosition,
+    MoveRight,
+    MoveToWindowCenter,
+    MoveToHorizontal,
+    MoveTop,
+    MoveToVerticalStack,
+    MoveToInitialPosition,
     Finished
 };
 
 struct Block {
     RectangleShape shape;
-    Vector2f basePosition;
-    Vector2f baseSize;
     Color baseColor = DEFAULT_COLOR;
-    float phaseOffset{};
 
-    AnimationStage stage = AnimationStage::Stage0_MoveRight;
+    AnimationStage stage = AnimationStage::MoveRight;
     float stageStartTime = 0.f;
 
     size_t index{};
@@ -42,13 +40,18 @@ struct Block {
 };
 
 // lerp
-template<typename T>
-T linearInterpolation(
-    const T &a,
-    const T &b,
+Vector2f linearInterpolation(
+    const Vector2f &a,
+    const Vector2f &b,
     const float time
 ) {
     return a + (b - a) * time;
+}
+
+Vector2f getInitialPosition(
+    const size_t index
+) {
+    return {INITIAL_POSITION.x, INITIAL_POSITION.y + static_cast<float>(index) * SPACING};
 }
 
 void createBlock(
@@ -56,18 +59,15 @@ void createBlock(
 ) {
     for (size_t i = 0; i < BLOCKS_COUNT; ++i) {
         Block b;
-        b.basePosition = {INITIAL_POSITION.x, INITIAL_POSITION.y + i * SPACING};
-        b.baseSize = {BASE_SIDE, BASE_SIDE};
-        b.phaseOffset = 0.f;
 
-        b.shape.setPosition(b.basePosition);
-        b.shape.setSize(b.baseSize);
+        b.shape.setPosition(getInitialPosition(i));
+        b.shape.setSize(BASE_SIZE);
         b.shape.setFillColor(b.baseColor);
-        b.shape.setOrigin(b.baseSize / 2.f);
+        b.shape.setOrigin(BASE_SIZE / 2.f);
 
         b.index = i;
-        b.stageStartPos = b.basePosition;
-        b.stageStartSize = b.baseSize;
+        b.stageStartPos = getInitialPosition(i);
+        b.stageStartSize = BASE_SIZE;
 
         blocks.push_back(b);
     }
@@ -139,148 +139,99 @@ void updateAlpha(
 void toNextStage(
     Block &block,
     const AnimationStage nextStage,
-    const float totalTime
+    const float totalTime,
+    const float normalizedTime
 ) {
-    block.stage = nextStage;
-    block.stageStartTime = totalTime;
-    block.stageStartPos = block.shape.getPosition();
-    block.stageStartSize = block.shape.getSize();
-}
-
-void toFinishStage(
-    Block &block
-) {
-    block.stage = AnimationStage::Finished;
-}
-
-void animateStage0_MoveRight(
-    Block &block,
-    const float totalTime
-) {
-    constexpr float RIGHT_SHIFT = 200.f;
-    const float normalizedTime = getNormalizedTime(block, totalTime);
-    const Vector2f endPos = {block.basePosition.x + RIGHT_SHIFT, block.basePosition.y};
-    updatePosition(block, endPos, normalizedTime);
-
     if (normalizedTime >= ANIMATION_DURATION) {
-        toNextStage(block, AnimationStage::Stage1_MoveToWindowCenter, totalTime);
+        block.stage = nextStage;
+        block.stageStartTime = totalTime;
+        block.stageStartPos = block.shape.getPosition();
+        block.stageStartSize = block.shape.getSize();
     }
 }
 
-void animateStage1_MoveToWindowCenter(
-    Block &block,
-    const float totalTime
+// Позиции
+Vector2f computeMoveRightTarget(
+    const Block &block,
+    const float shift = 200.f
 ) {
-    constexpr int COLOR_COMPENSATION_FACTOR = 2;
-    const float normalizedTime = getNormalizedTime(block, totalTime);
+    Vector2f initial = getInitialPosition(block.index);
+    return {initial.x + shift, initial.y};
+}
 
-    // Pos
+Vector2f computeGatherAtCenterTarget(
+    const Block &block
+) {
     const float totalHeight = (BLOCKS_COUNT - 1) * SPACING;
     const float startY = WINDOW_CENTER.y - totalHeight * HALF_COMPENSATION_FACTOR;
-    const float targetY = startY + static_cast<float>(block.index) * SPACING;
-    const Vector2f endPos = {WINDOW_CENTER.x, targetY};
-    updatePosition(block, endPos, normalizedTime);
-    updateAlpha(block, block.baseColor.a, block.baseColor.a / COLOR_COMPENSATION_FACTOR, normalizedTime);
-
-    if (normalizedTime >= ANIMATION_DURATION) {
-        toNextStage(block, AnimationStage::Stage2_MoveToHorizontal, totalTime);
-    }
+    float targetY = startY + static_cast<float>(block.index) * SPACING;
+    return {WINDOW_CENTER.x, targetY};
 }
 
-void animateStage2_MoveToHorizontal(
-    Block &block,
-    const float totalTime
+Vector2f computeSpreadHorizontalTarget(
+    const Block &block
 ) {
-    const float normalizedTime = getNormalizedTime(block, totalTime);
-
     const float totalWidth = (BLOCKS_COUNT - 1) * SPACING;
     const float startX = WINDOW_CENTER.x - totalWidth / 2.f;
-    const float targetX = startX + static_cast<float>(block.index) * SPACING;
-    const Vector2f endPos = {targetX, WINDOW_CENTER.y};
-
-    updatePosition(block, endPos, normalizedTime);
-
-
-    if (normalizedTime >= ANIMATION_DURATION) {
-        toNextStage(block, AnimationStage::Stage3_MoveTop, totalTime);
-    }
+    float targetX = startX + static_cast<float>(block.index) * SPACING;
+    return {targetX, WINDOW_CENTER.y};
 }
 
-void animateStage3_MoveTop(
-    Block &block,
-    const float totalTime
+Vector2f computeLiftUpTarget(
+    const Block &block,
+    const float shift = 200.f
 ) {
-    constexpr float VERTICAL_SHIFT = 200.f;
-    const float normalizedTime = getNormalizedTime(block, totalTime);
-
-    const Vector2f endPos = {block.stageStartPos.x, block.stageStartPos.y - VERTICAL_SHIFT};
-    updatePosition(block, endPos, normalizedTime);
-
-    // режем высоту в 2
-    const Vector2f startSize = block.stageStartSize;
-    const Vector2f endSize = {block.baseSize.x, block.baseSize.y * HALF_COMPENSATION_FACTOR};
-    updateSize(block, startSize, endSize, normalizedTime);
-
-    if (normalizedTime >= ANIMATION_DURATION) {
-        toNextStage(block, AnimationStage::Stage4_MoveToVerticalStack, totalTime);
-    }
+    return {block.stageStartPos.x, block.stageStartPos.y - shift};
 }
 
-void animateStage4_MoveToVerticalStack(
-    Block &block,
-    const float totalTime
+Vector2f computeVerticalStackTarget(
+    const Block &block
 ) {
-    const float normalizedTime = getNormalizedTime(block, totalTime);
-
     constexpr float newHeight = BASE_SIDE * HALF_COMPENSATION_FACTOR;
     constexpr float spacingY = newHeight + SPACING;
-
     constexpr float totalWidth = (BLOCKS_COUNT - 1) * SPACING;
     constexpr float firstBlockX = WINDOW_CENTER.x - totalWidth * HALF_COMPENSATION_FACTOR;
-
-    const float startY = block.stageStartPos.y;
-    const float targetY = startY + static_cast<float>(block.index) * spacingY;
-    const Vector2f endPos = {firstBlockX, targetY};
-    updatePosition(block, endPos, normalizedTime);
-
-    if (normalizedTime >= ANIMATION_DURATION) {
-        toNextStage(block, AnimationStage::Stage5_MoveToInitialPosition, totalTime);
-    }
+    float targetY = block.stageStartPos.y + static_cast<float>(block.index) * spacingY;
+    return {firstBlockX, targetY};
 }
 
-void animateStage5_MoveToInitialPosition(
-    Block &block,
-    const float totalTime
+Vector2f computeReturnToInitialTarget(
+    const Block &block
 ) {
-    const float normalizedTime = getNormalizedTime(block, totalTime);
+    return getInitialPosition(block.index);
+}
 
-    const Vector2f endPos = block.basePosition;
-    updatePosition(block, endPos, normalizedTime);
+// размер
+Vector2f computeLiftUpTargetSize() {
+    return {BASE_SIZE.x, BASE_SIZE.y * HALF_COMPENSATION_FACTOR};
+}
 
-    const Vector2f startSize = block.stageStartSize;
-    const Vector2f endSize = block.baseSize;
-    updateSize(block, startSize, endSize, normalizedTime);
+Vector2f computeReturnToInitialSize() {
+    return BASE_SIZE;
+}
 
-    updateAlpha(block, block.baseColor.a / 2, block.baseColor.a, normalizedTime);
+// альфа
+uint8_t computeDimmedAlpha() {
+    return DEFAULT_COLOR.a / 2;
+}
 
-    if (normalizedTime >= ANIMATION_DURATION) {
-        toFinishStage(block);
-    }
+uint8_t computeFullAlpha() {
+    return DEFAULT_COLOR.a;
 }
 
 void resetAnimation(
     Block &block,
     const float totalTime
 ) {
-    block.shape.setPosition(block.basePosition);
-    block.shape.setSize(block.baseSize);
+    const Vector2f position = getInitialPosition(block.index);
+    block.shape.setPosition(position);
+    block.shape.setSize(BASE_SIZE);
     block.shape.setFillColor(block.baseColor);
 
-    block.stage = AnimationStage::Stage0_MoveRight;
-    block.stageStartPos = block.basePosition;
-    block.stageStartSize = block.baseSize;
+    block.stage = AnimationStage::MoveRight;
+    block.stageStartPos = position;
+    block.stageStartSize = BASE_SIZE;
     block.stageStartTime = totalTime;
-    block.phaseOffset = totalTime;
 }
 
 void update(
@@ -292,28 +243,54 @@ void update(
     for (auto &block: blocks) {
         // сценарий
         switch (block.stage) {
-            case AnimationStage::Stage0_MoveRight: {
-                animateStage0_MoveRight(block, totalTime);
+            case AnimationStage::MoveRight: {
+                const float t = getNormalizedTime(block, totalTime);
+                Vector2f endPos = computeMoveRightTarget(block);
+                updatePosition(block, endPos, t);
+                toNextStage(block, AnimationStage::MoveToWindowCenter, totalTime, t);
                 break;
             }
-            case AnimationStage::Stage1_MoveToWindowCenter: {
-                animateStage1_MoveToWindowCenter(block, totalTime);
+            case AnimationStage::MoveToWindowCenter: {
+                const float t = getNormalizedTime(block, totalTime);
+                Vector2f endPos = computeGatherAtCenterTarget(block);
+                uint8_t endA = computeDimmedAlpha();
+                updatePosition(block, endPos, t);
+                updateAlpha(block, block.baseColor.a, endA, t);
+                toNextStage(block, AnimationStage::MoveToHorizontal, totalTime, t);
                 break;
             }
-            case AnimationStage::Stage2_MoveToHorizontal: {
-                animateStage2_MoveToHorizontal(block, totalTime);
+            case AnimationStage::MoveToHorizontal: {
+                const float t = getNormalizedTime(block, totalTime);
+                Vector2f endPos = computeSpreadHorizontalTarget(block);
+                updatePosition(block, endPos, t);
+                toNextStage(block, AnimationStage::MoveTop, totalTime, t);
                 break;
             }
-            case AnimationStage::Stage3_MoveTop: {
-                animateStage3_MoveTop(block, totalTime);
+            case AnimationStage::MoveTop: {
+                const float t = getNormalizedTime(block, totalTime);
+                Vector2f endPos = computeLiftUpTarget(block);
+                Vector2f endSize = computeLiftUpTargetSize();
+                updatePosition(block, endPos, t);
+                updateSize(block, block.stageStartSize, endSize, t);
+                toNextStage(block, AnimationStage::MoveToVerticalStack, totalTime, t);
                 break;
             }
-            case AnimationStage::Stage4_MoveToVerticalStack: {
-                animateStage4_MoveToVerticalStack(block, totalTime);
+            case AnimationStage::MoveToVerticalStack: {
+                const float t = getNormalizedTime(block, totalTime);
+                Vector2f endPos = computeVerticalStackTarget(block);
+                updatePosition(block, endPos, t);
+                toNextStage(block, AnimationStage::MoveToInitialPosition, totalTime, t);
                 break;
             }
-            case AnimationStage::Stage5_MoveToInitialPosition: {
-                animateStage5_MoveToInitialPosition(block, totalTime);
+            case AnimationStage::MoveToInitialPosition: {
+                const float t = getNormalizedTime(block, totalTime);
+                Vector2f endPos = computeReturnToInitialTarget(block);
+                Vector2f endSize = computeReturnToInitialSize();
+                uint8_t endA = computeFullAlpha();
+                updatePosition(block, endPos, t);
+                updateSize(block, block.stageStartSize, endSize, t);
+                updateAlpha(block, block.baseColor.a / 2, endA, t);
+                toNextStage(block, AnimationStage::Finished, totalTime, t);
                 break;
             }
             case AnimationStage::Finished: {
